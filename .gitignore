@@ -1,0 +1,47 @@
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build and coverage output
+dist/
+build/
+out/
+coverage/
+.next/
+.nuxt/
+
+# lab-cpi: binarios e saidas de medicao
+src/bench
+src/bench.exe
+src/bench.s
+src/*.o
+saida
+linux/resultados/
+windows/resultados/
+*.csv
+
+# Logs
+*.log
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# IDE/editor files
+.idea/
+.vscode/
+*.swp
