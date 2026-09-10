@@ -20,10 +20,10 @@ coverage/
 .next/
 .nuxt/
 
-# lab-cpi: binarios e saidas de medicao
-src/bench
-src/bench.exe
-src/bench.s
+# cperf: binarios e saidas de medicao
+src/cperf
+src/cperf.exe
+src/cperf.s
 src/*.o
 saida
 linux/resultados/
