@@ -21,13 +21,35 @@ cd src && make && cd ../linux
 
 Resultados em `linux/resultados/`.
 
+### macOS
+
+Não há `apt`, `perf` nem `taskset`; use o compilador do sistema e rode o
+`bench` direto.
+
+```bash
+cd src
+cc -O2 -fno-unroll-loops -o bench bench.c
+./bench all
+```
+
+Em Apple Silicon o processo migra entre P-cores e E-cores, então `freq`
+oscila mais que no Linux. Confie na mediana de `./bench freq` e valide com
+`./bench calib`. O aviso "nao consegui fixar a afinidade" é esperado no
+macOS e não impede a medição.
+
 ### Windows, sem administrador
+
+Não precisa de compilador nem do `.exe`: o script traz o próprio motor de
+medição em C# e o compila na hora com `Add-Type`.
 
 ```powershell
 cd windows
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\Medir-CPU.ps1
 ```
+
+Funciona no Windows PowerShell 5.1 e no PowerShell 7.x. Resultados em
+`windows\resultados\`. Para um teste isolado: `.\Medir-CPU.ps1 -Teste freq`.
 
 ### Gerar o .exe a partir do WSL
 
@@ -49,6 +71,10 @@ cd src && make win
 | `./bench matriz 2048` | Percurso por linha versus por coluna |
 | `./bench ladder 90` | Frequência ao longo do tempo, em CSV |
 | `./bench all` | Bateria completa |
+
+No Windows o mesmo subcomando vai no parâmetro `-Teste`:
+`.\Medir-CPU.ps1 -Teste mem`, `.\Medir-CPU.ps1 -Teste ladder -Segundos 90`,
+`.\Medir-CPU.ps1` sozinho roda a bateria completa.
 
 ## Como funciona
 
