@@ -1,18 +1,20 @@
 <#
 =======================================================================
- Medir-CPU.ps1
- Laboratorio de medicao de CPU no Windows SEM privilegio de administrador.
+ cperf.ps1
+ cperf para Windows: mede CPU (frequencia, CPI/IPC, latencias) SEM
+ privilegio de administrador. Mesmo metodo do cperf em C, com o motor
+ compilado na hora em C# via Add-Type.
  Infraestrutura de Hardware / CESAR School
 
  Testado em Windows PowerShell 5.1 e PowerShell 7.x.
 
  Uso:
-   powershell -ExecutionPolicy Bypass -File .\Medir-CPU.ps1
-   .\Medir-CPU.ps1 -Teste info
-   .\Medir-CPU.ps1 -Teste freq
-   .\Medir-CPU.ps1 -Teste lat
-   .\Medir-CPU.ps1 -Teste ladder -Segundos 90
-   .\Medir-CPU.ps1 -Teste tudo -Saida .\resultados
+   powershell -ExecutionPolicy Bypass -File .\cperf.ps1
+   .\cperf.ps1 -Teste info
+   .\cperf.ps1 -Teste freq
+   .\cperf.ps1 -Teste lat
+   .\cperf.ps1 -Teste ladder -Segundos 90
+   .\cperf.ps1 -Teste tudo -Saida .\resultados
 
  Subcomandos: info freq calib ilp lat mem matriz ladder tudo
 
@@ -65,7 +67,7 @@ function Linha     { Write-Host ('  ' + ('-' * 62)) }
 #    NOTA sobre ARM (Apple Silicon, Windows on ARM): o JIT ARM64 nem
 #    sempre mantem o acumulador em registrador, e a cadeia mede alto
 #    demais. O subcomando 'calib' detecta isso. Em maquinas ARM use o
-#    'bench' em C (src/bench.c), que forca 'add reg,reg' em assembly.
+#    cperf em C (src/cperf.c), que forca 'add reg,reg' em assembly.
 # =====================================================================
 $csharp = @'
 using System;
@@ -443,7 +445,7 @@ function Teste-Calib([double]$ghz) {
         try { $arch = "$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)" } catch { }
         if ($arch -match 'Arm' -or $env:PROCESSOR_ARCHITECTURE -match 'ARM') {
             Nota 'Arquitetura ARM detectada. O JIT ARM64 costuma medir a cadeia'
-            Nota 'alto demais. Nesta maquina prefira o bench em C: src/bench.c'
+            Nota 'alto demais. Nesta maquina prefira o cperf em C: src/cperf.c'
         }
     }
     Write-Host ''
@@ -598,7 +600,7 @@ function Teste-Ladder([int]$seg, [string]$arquivo) {
 # =====================================================================
 # 4. Execucao
 # =====================================================================
-Titulo 'LABORATORIO DE MEDICAO DE CPU  -  Windows, sem admin'
+Titulo 'cperf  -  medindo CPU no Windows, sem admin'
 Preparar-Processo
 
 if ($Teste -in @('tudo','ladder') -and -not (Test-Path $Saida)) {
