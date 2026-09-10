@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # =====================================================================
-# medir.sh  -  Roteiro executavel de medicao de CPU no Linux e no WSL2
+# medir.sh  -  Driver do cperf para Linux e WSL2 (com diagnostico de perf)
 # Infraestrutura de Hardware / CESAR School
 #
 #   ./medir.sh            roda tudo e gera resultados/
 #   ./medir.sh diag       so o diagnostico de ambiente
-#   ./medir.sh perf       so a parte de perf
-#   ./medir.sh bench      so o benchmark proprio
+#   ./medir.sh perf       so a parte de perf (PMU real, quando existe)
+#   ./medir.sh cperf      so o cperf (cronometragem calibrada, sempre funciona)
 #
 # Nao precisa de root. Onde algo exigir privilegio, o script avisa e segue.
 # =====================================================================
 
 set -uo pipefail
 
-BENCH="${BENCH:-../src/bench}"
+CPERF="${CPERF:-../src/cperf}"
 OUT="${OUT:-resultados}"
 CPU_ALVO="${CPU_ALVO:-1}"     # nucleo onde fixamos as medidas
 LADDER_SEG="${LADDER_SEG:-60}" # duracao da amostragem de turbo, em segundos
@@ -99,7 +99,7 @@ diag() {
       amar "  Causa tipica: WSL2 ou VM. O hipervisor nao expoe o PMU ao convidado."
       amar "  Consequencia: 'perf stat -e cycles,instructions' nao funciona."
       amar "  Solucao do laboratorio: medir ciclos por CRONOMETRAGEM CALIBRADA."
-      echo "  (e o que o ./bench faz)"
+      echo "  (e o que o cperf faz)"
       export PMU_OK=0
     else
       verde "  Contadores de hardware FUNCIONANDO. Voce tem PMU real."
@@ -128,7 +128,7 @@ rodar_perf() {
   titulo "3. MEDICAO COM perf"
   detectar_perf || { amar "  perf indisponivel, pulando esta secao."; return; }
 
-  local alvo="${1:-$BENCH}"
+  local alvo="${1:-$CPERF}"
   [ -x "$alvo" ] || { amar "  binario $alvo nao encontrado. Rode 'make' em ../src"; return; }
 
   echo "-- 3.1 Contagem basica: ciclos, instrucoes e IPC --"
@@ -159,16 +159,16 @@ rodar_perf() {
 }
 
 # ---------------------------------------------------------------------
-# 3. Benchmark proprio (funciona com ou sem PMU)
+# 3. cperf (funciona com ou sem PMU)
 # ---------------------------------------------------------------------
-rodar_bench() {
+rodar_cperf() {
   titulo "4. MEDICAO SEM PMU (funciona no WSL)"
-  [ -x "$BENCH" ] || { amar "  Compile primeiro: cd ../src && make"; return 1; }
+  [ -x "$CPERF" ] || { amar "  Compile primeiro: cd ../src && make"; return 1; }
 
   # taskset -c N fixa o processo no nucleo N. Reduz muito a variancia,
   # porque o escalonador para de migrar o processo entre nucleos.
-  local RUN=(taskset -c "$CPU_ALVO" "$BENCH")
-  command -v taskset >/dev/null 2>&1 || RUN=("$BENCH")
+  local RUN=(taskset -c "$CPU_ALVO" "$CPERF")
+  command -v taskset >/dev/null 2>&1 || RUN=("$CPERF")
 
   # nice -n -5 exigiria privilegio; nice positivo nao ajuda. Ficamos no padrao.
   "${RUN[@]}" info   | tee "$OUT/01-info.txt"
@@ -202,8 +202,8 @@ extras() {
 
   echo "-- /usr/bin/time -v: visao do sistema operacional --"
   echo "   mostra tempo de usuario x de kernel, RSS maximo, trocas de contexto"
-  if [ -x /usr/bin/time ] && [ -x "$BENCH" ]; then
-    /usr/bin/time -v "$BENCH" matriz 1024 2>&1 | grep -Ei \
+  if [ -x /usr/bin/time ] && [ -x "$CPERF" ]; then
+    /usr/bin/time -v "$CPERF" matriz 1024 2>&1 | grep -Ei \
       'User time|System time|Elapsed|Maximum resident|context switch|Page faults' \
       | sed 's/^/   /'
   else
@@ -212,9 +212,9 @@ extras() {
 
   echo
   echo "-- Prova de que a diferenca da matriz e CPI, e nao contagem de instrucao --"
-  if command -v objdump >/dev/null 2>&1 && [ -x "$BENCH" ]; then
+  if command -v objdump >/dev/null 2>&1 && [ -x "$CPERF" ]; then
     for fn in soma_por_linha soma_por_coluna; do
-      n=$(objdump -d "$BENCH" \
+      n=$(objdump -d "$CPERF" \
           | awk "/<$fn>:/,/^\$/" \
           | grep -P '^\s+[0-9a-f]+:\t' \
           | grep -vE '\b(nop|nopl|nopw|data16|cs nop|xchg\s+%ax,%ax)\b' \
@@ -224,10 +224,10 @@ extras() {
     echo
     echo "   Laco interno de cada versao (compile com -fno-unroll-loops):"
     echo "   --- por linha ---"
-    objdump -d "$BENCH" | awk '/<soma_por_linha>:/,/^$/' \
+    objdump -d "$CPERF" | awk '/<soma_por_linha>:/,/^$/' \
       | grep -E 'addsd|add |cmp|jne' | head -6 | sed 's/^/     /'
     echo "   --- por coluna ---"
-    objdump -d "$BENCH" | awk '/<soma_por_coluna>:/,/^$/' \
+    objdump -d "$CPERF" | awk '/<soma_por_coluna>:/,/^$/' \
       | grep -E 'addsd|add |cmp|jne' | head -6 | sed 's/^/     /'
     echo
     echo "   Sao 4 e 5 instrucoes por elemento: cerca de 25% de diferenca em IC."
@@ -238,14 +238,14 @@ extras() {
 # ---------------------------------------------------------------------
 main() {
   case "${1:-tudo}" in
-    diag)  diag ;;
-    perf)  rodar_perf "${2:-$BENCH}" ;;
-    bench) rodar_bench ;;
+    diag)   diag ;;
+    perf)   rodar_perf "${2:-$CPERF}" ;;
+    cperf)  rodar_cperf ;;
     extras) extras ;;
-    tudo)  diag; rodar_perf; rodar_bench; extras
-           titulo "FIM"
-           verde "Resultados em: $(cd "$OUT" && pwd)" ;;
-    *) echo "uso: $0 [diag|perf|bench|extras|tudo]"; exit 1 ;;
+    tudo)   diag; rodar_perf; rodar_cperf; extras
+            titulo "FIM"
+            verde "Resultados em: $(cd "$OUT" && pwd)" ;;
+    *) echo "uso: $0 [diag|perf|cperf|extras|tudo]"; exit 1 ;;
   esac
 }
 main "$@"
