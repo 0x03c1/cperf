@@ -1,11 +1,13 @@
 /* =====================================================================
- * bench.c  -  Laboratorio: medindo CPU de verdade
+ * cperf.c  -  cperf: medindo CPU de verdade
  *             (frequencia, CPI/IPC, latencia de instrucao e memoria)
  *
  * Infraestrutura de Hardware / CESAR School
  * Maciel, Ronierison
  *
- * Roda em Linux, WSL2 e Windows. NAO precisa de root, de admin nem de PMU.
+ * cperf = "C perf": faz o trabalho do 'perf' (ciclos, CPI, IPC) so que
+ * por cronometragem calibrada, sem PMU. Roda em Linux, WSL2, macOS e
+ * Windows. NAO precisa de root, de admin nem de PMU.
  *
  * Ideia central:
  *   Uma cadeia de somas inteiras DEPENDENTES (add reg,reg) custa
@@ -15,12 +17,14 @@
  *   latencia conhecida (imul = 3, divsd = 13..20 ciclos).
  *
  * Build (Linux/WSL):
- *   gcc -O2 -fno-tree-vectorize -fno-unroll-loops -o bench bench.c -lm
+ *   gcc -O2 -fno-tree-vectorize -fno-unroll-loops -o cperf cperf.c -lm
+ * Build (macOS):
+ *   cc -O2 -fno-unroll-loops -o cperf cperf.c
  * Build do .exe a partir do WSL (roda no Windows sem admin):
  *   x86_64-w64-mingw32-gcc -O2 -fno-tree-vectorize -fno-unroll-loops \
- *       -o bench.exe bench.c
+ *       -o cperf.exe cperf.c
  *
- * Uso: ./bench <subcomando>
+ * Uso: ./cperf <subcomando>
  *   info          CPU, timers e caches
  *   calib         valida o metodo contra latencias conhecidas
  *   freq          frequencia REAL do nucleo sob carga
@@ -513,7 +517,7 @@ static void cmd_freq(void)
     }
     if (med > 7.0)
         printf("\n  AVISO: valor implausivel. A cadeia de dependencia foi quebrada.\n"
-               "         Rode './bench calib' para diagnosticar.\n");
+               "         Rode './cperf calib' para diagnosticar.\n");
     printf("\n");
 }
 
@@ -521,7 +525,7 @@ static void cmd_ladder(int seg)
 {
     double t0;
     fprintf(stderr, "== FREQUENCIA AO LONGO DO TEMPO (%d s) ==\n", seg);
-    fprintf(stderr, "   CSV no stdout. Ex.: ./bench ladder 90 > turbo.csv\n\n");
+    fprintf(stderr, "   CSV no stdout. Ex.: ./cperf ladder 90 > turbo.csv\n\n");
     printf("segundos,ghz\n");
     t0 = now_ns();
     for (;;) {
